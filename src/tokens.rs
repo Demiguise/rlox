@@ -21,6 +21,7 @@ pub enum TokenType {
     Greater,
     GreaterEqual,
     LessEqual,
+    Less,
 
     // Literals
     Identifier,

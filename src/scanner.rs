@@ -22,13 +22,69 @@ impl Scanner {
         let substr = self
             .source
             .get(self.start..self.current)
-            .expect("TODO: Better message?");
+            .expect("Failed to get substring out of source");
         out.push(Token::create(t, substr.to_string(), self.line));
     }
 
+    fn handle_number(&mut self, out: &mut Vec<Token>) {
+        while self.peek().is_numeric() {
+            self.advance();
+        }
+
+        // Then we might encounter a '.'
+        if self.peek() == '.' && self.peek_next().is_numeric() {
+            // Advance past the '.'
+            self.advance();
+
+            while self.peek().is_numeric() {
+                self.advance();
+            }
+        }
+
+        /*
+            TODO: The book extracts the actual "Value" out of the source
+            and parses it into a relevant string or number. We'll try that later.
+        */
+        self.add_token(TokenType::Number, out)
+    }
+
+    fn handle_string(&mut self, out: &mut Vec<Token>) {
+        while self.peek() != '"' && !self.is_at_end() {
+            if self.peek() == '\n' {
+                self.line += 1;
+            }
+            self.advance();
+        }
+
+        if self.is_at_end() {
+            // Unterminated string, should error here
+            return;
+        }
+
+        self.advance(); // For the closing quote
+
+        /*
+            TODO: The book extracts the actual "Value" out of the source
+            and parses it into a relevant string or number. We'll try that later.
+        */
+        //self.source.get(self.start + 1 .. self.current -1);
+        self.add_token(TokenType::String, out);
+    }
+
     fn scan_token(&mut self, out: &mut Vec<Token>) {
+        // Macro to help setup the one-to-two character operators
+        macro_rules! match_add {
+            ($c:literal, $if_true: expr, $if_false: expr) => {
+                match self.match_char($c) {
+                    true => self.add_token($if_true, out),
+                    false => self.add_token($if_false, out),
+                };
+            };
+        }
+
         let c = self.advance();
         match c {
+            // Single Character Tokens
             '(' => self.add_token(TokenType::LeftParen, out),
             ')' => self.add_token(TokenType::RightParen, out),
             '{' => self.add_token(TokenType::LeftBrace, out),
@@ -39,7 +95,41 @@ impl Scanner {
             '+' => self.add_token(TokenType::Plus, out),
             ';' => self.add_token(TokenType::SemiColon, out),
             '*' => self.add_token(TokenType::Star, out),
-            _ => println!("Unexpected char [{}]", c),
+
+            // One/Two Character Tokens
+            '!' => match_add!('=', TokenType::BangEqual, TokenType::Bang),
+            '=' => match_add!('=', TokenType::EqualEqual, TokenType::Equal),
+            '<' => match_add!('=', TokenType::LessEqual, TokenType::Less),
+            '>' => match_add!('=', TokenType::GreaterEqual, TokenType::Greater),
+
+            // White space (Does nothing)
+            ' ' => {}
+            '\r' => {}
+            '\t' => {}
+
+            // New line
+            '\n' => self.line += 1,
+
+            // String Literals
+            '"' => self.handle_string(out),
+
+            // Comments
+            '/' => {
+                if self.match_char('/') {
+                    while self.peek() != '\n' && !self.is_at_end() {
+                        self.advance();
+                    }
+                } else {
+                    self.add_token(TokenType::Slash, out)
+                }
+            }
+            _ => {
+                if c.is_numeric() {
+                    self.handle_number(out);
+                } else {
+                    println!("Unexpected char [{}]", c);
+                }
+            },
         }
     }
 
@@ -55,14 +145,56 @@ impl Scanner {
         return tokens;
     }
 
+    fn peek(&self) -> char {
+        if self.is_at_end() {
+            return '\0';
+        }
+        return self
+            .source
+            .chars()
+            .nth(self.current)
+            .expect("Failed to get Nth char for peek");
+    }
+
+    fn peek_next(&self) -> char {
+        if self.current + 1 > self.source.len() {
+            return '\0';
+        }
+        return self
+            .source
+            .chars()
+            .nth(self.current + 1)
+            .expect("Failed to get Nth char for peek");
+    }
+
     fn advance(&mut self) -> char {
         let out = self
             .source
             .chars()
             .nth(self.current)
-            .expect("TODO: Better message?");
+            .expect("Failed to get Nth char for peek");
         self.current += 1;
         return out;
+    }
+
+    fn match_char(&mut self, c: char) -> bool {
+        if self.is_at_end() {
+            return false;
+        }
+
+        if self
+            .source
+            .chars()
+            .nth(self.current)
+            .expect("Failed to get Nth char for match_char")
+            != c
+        {
+            return false;
+        }
+
+        // Consume token and advance
+        self.current += 1;
+        return true;
     }
 
     fn is_at_end(&self) -> bool {
