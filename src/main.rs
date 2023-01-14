@@ -1,12 +1,15 @@
 mod scanner;
 mod tokens;
 
-use std::{env, fs};
 use scanner::Scanner;
+use std::{env, fs};
 use text_io::read;
 
 fn run(input: String) {
-    let scanner = Scanner::create(input);
+    let mut scanner = Scanner::create(input);
+    let tokens = scanner.scan_tokens();
+
+    println!("{:?}", tokens);
 }
 
 fn run_file(file_path: &String) {

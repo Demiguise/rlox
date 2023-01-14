@@ -1,3 +1,4 @@
+#[derive(Debug)]
 pub enum TokenType {
     // Single-Char tokens
     LeftParen,
@@ -48,8 +49,19 @@ pub enum TokenType {
     Eof,
 }
 
+#[derive(Debug)]
 pub struct Token {
     token_type: TokenType,
     lexeme: String,
-    line: u64,
+    line: usize,
+}
+
+impl Token {
+    pub fn create(t: TokenType, lexeme: String, line: usize) -> Self {
+        Token {
+            token_type: t,
+            lexeme: lexeme,
+            line: line,
+        }
+    }
 }
