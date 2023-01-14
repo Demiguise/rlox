@@ -1,4 +1,6 @@
 use crate::tokens::{Token, TokenType};
+use lazy_static::lazy_static;
+use std::collections::HashMap;
 
 pub struct Scanner {
     source: String,
@@ -6,6 +8,29 @@ pub struct Scanner {
     start: usize,
     current: usize,
     line: usize,
+}
+
+lazy_static! {
+    static ref keyword_map: HashMap<&'static str, TokenType> = {
+        HashMap::from([
+            ("and", TokenType::And),
+            ("class", TokenType::Class),
+            ("else", TokenType::Else),
+            ("false", TokenType::False),
+            ("for", TokenType::For),
+            ("fun", TokenType::Fun),
+            ("if", TokenType::If),
+            ("nil", TokenType::Nil),
+            ("or", TokenType::Or),
+            ("print", TokenType::Print),
+            ("return", TokenType::Return),
+            ("super", TokenType::Super),
+            ("this", TokenType::This),
+            ("true", TokenType::True),
+            ("var", TokenType::Var),
+            ("while", TokenType::While),
+        ])
+    };
 }
 
 impl Scanner {
@@ -46,6 +71,22 @@ impl Scanner {
             and parses it into a relevant string or number. We'll try that later.
         */
         self.add_token(TokenType::Number, out)
+    }
+
+    // Identifiers start with [a-zA-Z] but can have numbers in them
+    fn handle_identifier(&mut self, out: &mut Vec<Token>) {
+        while self.peek().is_alphanumeric() {
+            self.advance();
+        }
+
+        let text = self
+            .source
+            .get(self.start..self.current)
+            .expect("Failed to get the identifier string from source!");
+        match keyword_map.get(text) {
+            Some(t) => self.add_token(t.clone(), out),
+            None => self.add_token(TokenType::Identifier, out),
+        }
     }
 
     fn handle_string(&mut self, out: &mut Vec<Token>) {
@@ -126,10 +167,12 @@ impl Scanner {
             _ => {
                 if c.is_numeric() {
                     self.handle_number(out);
+                } else if c.is_alphabetic() {
+                    self.handle_identifier(out);
                 } else {
                     println!("Unexpected char [{}]", c);
                 }
-            },
+            }
         }
     }
 

@@ -1,4 +1,4 @@
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub enum TokenType {
     // Single-Char tokens
     LeftParen,
@@ -32,7 +32,7 @@ pub enum TokenType {
     And,
     Class,
     Else,
-    Fals,
+    False,
     Fun,
     For,
     If,
