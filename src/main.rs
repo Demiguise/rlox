@@ -1,8 +1,12 @@
+mod scanner;
+mod tokens;
+
 use std::{env, fs};
+use scanner::Scanner;
 use text_io::read;
 
 fn run(input: String) {
-    println!("{}", input)
+    let scanner = Scanner::create(input);
 }
 
 fn run_file(file_path: &String) {
