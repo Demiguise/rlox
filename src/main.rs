@@ -4,18 +4,25 @@ mod tokens;
 use scanner::Scanner;
 use std::{env, fs};
 use text_io::read;
+use anyhow::Result;
 
-fn run(input: String) {
+fn run(input: String) -> Result<()> {
     let mut scanner = Scanner::create(input);
-    let tokens = scanner.scan_tokens();
+    let tokens = scanner.scan_tokens()?;
 
     println!("{:?}", tokens);
+    Ok(())
 }
 
 fn run_file(file_path: &String) {
     println!("Attempting to load file [{}]", file_path);
     let contents = fs::read_to_string(file_path).expect("Unable to read file");
-    run(contents)
+    match run(contents) {
+        Ok(_) => {},
+        Err(e) => {
+            println!("{:?}", e)
+        }
+    }
 }
 
 fn run_prompt() {
@@ -23,7 +30,12 @@ fn run_prompt() {
     loop {
         print!("> ");
         let line: String = read!("{}\n");
-        run(line)
+        match run(line) {
+            Ok(_) => {},
+            Err(e) => {
+                println!("Error: {:?}", e)
+            }
+        }
     }
 }
 
