@@ -1,4 +1,5 @@
 use crate::tokens::{Token, TokenType};
+use anyhow::{anyhow, Context, Result};
 use lazy_static::lazy_static;
 use std::collections::HashMap;
 
@@ -43,25 +44,26 @@ impl Scanner {
         }
     }
 
-    fn add_token(&mut self, t: TokenType, out: &mut Vec<Token>) {
+    fn add_token(&mut self, t: TokenType, out: &mut Vec<Token>) -> Result<()> {
         let substr = self
             .source
             .get(self.start..self.current)
-            .expect("Failed to get substring out of source");
+            .context("Failed to get substring out of source")?;
         out.push(Token::create(t, substr.to_string(), self.line));
+        Ok(())
     }
 
-    fn handle_number(&mut self, out: &mut Vec<Token>) {
-        while self.peek().is_numeric() {
+    fn handle_number(&mut self, out: &mut Vec<Token>) -> Result<()> {
+        while self.peek()?.is_numeric() {
             self.advance();
         }
 
         // Then we might encounter a '.'
-        if self.peek() == '.' && self.peek_next().is_numeric() {
+        if self.peek()? == '.' && self.peek_next()?.is_numeric() {
             // Advance past the '.'
             self.advance();
 
-            while self.peek().is_numeric() {
+            while self.peek()?.is_numeric() {
                 self.advance();
             }
         }
@@ -74,8 +76,8 @@ impl Scanner {
     }
 
     // Identifiers start with [a-zA-Z] but can have numbers in them
-    fn handle_identifier(&mut self, out: &mut Vec<Token>) {
-        while self.peek().is_alphanumeric() {
+    fn handle_identifier(&mut self, out: &mut Vec<Token>) -> Result<()> {
+        while self.peek()?.is_alphanumeric() {
             self.advance();
         }
 
@@ -89,17 +91,16 @@ impl Scanner {
         }
     }
 
-    fn handle_string(&mut self, out: &mut Vec<Token>) {
-        while self.peek() != '"' && !self.is_at_end() {
-            if self.peek() == '\n' {
+    fn handle_string(&mut self, out: &mut Vec<Token>) -> Result<()> {
+        while self.peek()? != '"' && !self.is_at_end() {
+            if self.peek()? == '\n' {
                 self.line += 1;
             }
             self.advance();
         }
 
         if self.is_at_end() {
-            // Unterminated string, should error here
-            return;
+            return Err(anyhow!("Unterminated string in file"));
         }
 
         self.advance(); // For the closing quote
@@ -109,10 +110,10 @@ impl Scanner {
             and parses it into a relevant string or number. We'll try that later.
         */
         //self.source.get(self.start + 1 .. self.current -1);
-        self.add_token(TokenType::String, out);
+        self.add_token(TokenType::String, out)
     }
 
-    fn scan_token(&mut self, out: &mut Vec<Token>) {
+    fn scan_token(&mut self, out: &mut Vec<Token>) -> Result<()> {
         // Macro to help setup the one-to-two character operators
         macro_rules! match_add {
             ($c:literal, $if_true: expr, $if_false: expr) => {
@@ -123,7 +124,7 @@ impl Scanner {
             };
         }
 
-        let c = self.advance();
+        let c = self.advance()?;
         match c {
             // Single Character Tokens
             '(' => self.add_token(TokenType::LeftParen, out),
@@ -144,12 +145,15 @@ impl Scanner {
             '>' => match_add!('=', TokenType::GreaterEqual, TokenType::Greater),
 
             // White space (Does nothing)
-            ' ' => {}
-            '\r' => {}
-            '\t' => {}
+            ' ' => Ok(()),
+            '\r' => Ok(()),
+            '\t' => Ok(()),
 
             // New line
-            '\n' => self.line += 1,
+            '\n' => {
+                self.line += 1;
+                Ok(())
+            }
 
             // String Literals
             '"' => self.handle_string(out),
@@ -157,67 +161,67 @@ impl Scanner {
             // Comments
             '/' => {
                 if self.match_char('/') {
-                    while self.peek() != '\n' && !self.is_at_end() {
+                    while self.peek()? != '\n' && !self.is_at_end() {
                         self.advance();
                     }
+                    Ok(())
                 } else {
                     self.add_token(TokenType::Slash, out)
                 }
             }
             _ => {
                 if c.is_numeric() {
-                    self.handle_number(out);
+                    self.handle_number(out)
                 } else if c.is_alphabetic() {
-                    self.handle_identifier(out);
+                    self.handle_identifier(out)
                 } else {
-                    println!("Unexpected char [{}]", c);
+                    Err(anyhow!("Unexpected char [{}]", c))
                 }
             }
         }
     }
 
-    pub fn scan_tokens(&mut self) -> Vec<Token> {
+    pub fn scan_tokens(&mut self) -> Result<Vec<Token>> {
         let mut tokens: Vec<Token> = Vec::new();
 
         while !self.is_at_end() {
             self.start = self.current;
-            self.scan_token(&mut tokens)
+            self.scan_token(&mut tokens)?
         }
 
         tokens.push(Token::create(TokenType::Eof, "".to_string(), self.line));
-        return tokens;
+
+        Ok(tokens)
     }
 
-    fn peek(&self) -> char {
+    fn peek(&self) -> Result<char> {
         if self.is_at_end() {
-            return '\0';
+            return Ok('\0');
         }
-        return self
-            .source
+        self.source
             .chars()
             .nth(self.current)
-            .expect("Failed to get Nth char for peek");
+            .context("Failed to get Nth char for peek")
     }
 
-    fn peek_next(&self) -> char {
+    fn peek_next(&self) -> Result<char> {
         if self.current + 1 > self.source.len() {
-            return '\0';
+            return Ok('\0');
         }
-        return self
-            .source
+        self.source
             .chars()
             .nth(self.current + 1)
-            .expect("Failed to get Nth char for peek");
+            .context("Failed to get Nth char for peek")
     }
 
-    fn advance(&mut self) -> char {
+    fn advance(&mut self) -> Result<char> {
         let out = self
             .source
             .chars()
             .nth(self.current)
             .expect("Failed to get Nth char for peek");
         self.current += 1;
-        return out;
+        Ok(out)
     }
 
     fn match_char(&mut self, c: char) -> bool {
