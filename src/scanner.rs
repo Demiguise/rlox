@@ -12,7 +12,7 @@ pub struct Scanner {
 }
 
 lazy_static! {
-    static ref keyword_map: HashMap<&'static str, TokenType> = {
+    static ref KEYWORD_MAP: HashMap<&'static str, TokenType> = {
         HashMap::from([
             ("and", TokenType::And),
             ("class", TokenType::Class),
@@ -85,7 +85,7 @@ impl Scanner {
             .source
             .get(self.start..self.current)
             .expect("Failed to get the identifier string from source!");
-        match keyword_map.get(text) {
+        match KEYWORD_MAP.get(text) {
             Some(t) => self.add_token(t.clone(), out),
             None => self.add_token(TokenType::Identifier, out),
         }
