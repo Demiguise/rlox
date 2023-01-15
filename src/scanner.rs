@@ -55,16 +55,16 @@ impl Scanner {
 
     fn handle_number(&mut self, out: &mut Vec<Token>) -> Result<()> {
         while self.peek()?.is_numeric() {
-            self.advance();
+            self.advance()?;
         }
 
         // Then we might encounter a '.'
         if self.peek()? == '.' && self.peek_next()?.is_numeric() {
             // Advance past the '.'
-            self.advance();
+            self.advance()?;
 
             while self.peek()?.is_numeric() {
-                self.advance();
+                self.advance()?;
             }
         }
 
@@ -78,7 +78,7 @@ impl Scanner {
     // Identifiers start with [a-zA-Z] but can have numbers in them
     fn handle_identifier(&mut self, out: &mut Vec<Token>) -> Result<()> {
         while self.peek()?.is_alphanumeric() {
-            self.advance();
+            self.advance()?;
         }
 
         let text = self
@@ -96,14 +96,14 @@ impl Scanner {
             if self.peek()? == '\n' {
                 self.line += 1;
             }
-            self.advance();
+            self.advance()?;
         }
 
         if self.is_at_end() {
             return Err(anyhow!("Unterminated string in file"));
         }
 
-        self.advance(); // For the closing quote
+        self.advance()?; // For the closing quote
 
         /*
             TODO: The book extracts the actual "Value" out of the source
@@ -120,7 +120,7 @@ impl Scanner {
                 match self.match_char($c) {
                     true => self.add_token($if_true, out),
                     false => self.add_token($if_false, out),
-                };
+                }
             };
         }
 
@@ -162,7 +162,7 @@ impl Scanner {
             '/' => {
                 if self.match_char('/') {
                     while self.peek()? != '\n' && !self.is_at_end() {
-                        self.advance();
+                        self.advance()?;
                     }
                     Ok(())
                 } else {
